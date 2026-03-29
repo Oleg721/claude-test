@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:auto.ria.com)",
+      "WebSearch",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Skill(claude-api)",
+      "mcp__chrome-devtools__performance_analyze_insight",
+      "Bash(python3 -m json.tool)",
+      "Bash(mkdir -p /Users/oleh/projects/claude-test/.claude/skills/car-search)",
+      "Bash(rm -rf /Users/oleh/.claude/plugins/marketplaces/claude-plugins-official/plugins/car-search)"
+    ]
+  }
+}
