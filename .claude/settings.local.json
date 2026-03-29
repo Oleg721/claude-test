@@ -10,7 +10,15 @@
       "mcp__chrome-devtools__performance_analyze_insight",
       "Bash(python3 -m json.tool)",
       "Bash(mkdir -p /Users/oleh/projects/claude-test/.claude/skills/car-search)",
-      "Bash(rm -rf /Users/oleh/.claude/plugins/marketplaces/claude-plugins-official/plugins/car-search)"
+      "Bash(rm -rf /Users/oleh/.claude/plugins/marketplaces/claude-plugins-official/plugins/car-search)",
+      "WebFetch(domain:github.com)",
+      "mcp__github__search_pull_requests",
+      "Bash(git:*)",
+      "Skill(commit-commands:commit)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "github"
+  ]
 }
