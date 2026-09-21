@@ -1,0 +1,72 @@
+{
+  "info": {
+    "name": "claude-test",
+    "description": "API playground: LLM port + nutrition photo endpoint. Set `baseUrl` if the server is not on :3000.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/", "host": ["{{baseUrl}}"], "path": [""] }
+      }
+    },
+    {
+      "name": "Nutrition",
+      "item": [
+        {
+          "name": "Photo — estimate everything",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/nutrition/photo", "host": ["{{baseUrl}}"], "path": ["nutrition", "photo"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "photo", "type": "file", "src": "", "description": "JPEG / PNG / WebP / GIF, up to 5 MB (required)" }
+              ]
+            },
+            "description": "Only the photo: the model identifies the item(s), reads a label if there is one, and estimates the portion weight."
+          }
+        },
+        {
+          "name": "Photo — weight and hint given",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/nutrition/photo", "host": ["{{baseUrl}}"], "path": ["nutrition", "photo"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "photo", "type": "file", "src": "", "description": "JPEG / PNG / WebP / GIF, up to 5 MB (required)" },
+                { "key": "grams", "value": "180", "type": "text", "description": "Positive number; skips the weight estimate" },
+                { "key": "hint", "value": "яблоко", "type": "text", "description": "Free text: what it is, which item to report" }
+              ]
+            },
+            "description": "Weight from the scale + a hint; the response computes the portion and bread units (xe) from the given grams."
+          }
+        },
+        {
+          "name": "Photo — pick model and effort",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/nutrition/photo", "host": ["{{baseUrl}}"], "path": ["nutrition", "photo"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "photo", "type": "file", "src": "", "description": "JPEG / PNG / WebP / GIF, up to 5 MB (required)" },
+                { "key": "model", "value": "haiku", "type": "text", "description": "fable | opus (default) | sonnet | haiku, or a full model id" },
+                { "key": "effort", "value": "low", "type": "text", "description": "low (default) | medium | high | max" },
+                { "key": "grams", "value": "", "type": "text", "disabled": true },
+                { "key": "hint", "value": "", "type": "text", "disabled": true }
+              ]
+            },
+            "description": "Same call, different model / effort — compare `stats.usage` and `stats.cost` across models."
+          }
+        }
+      ]
+    }
+  ]
+}

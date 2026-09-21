@@ -1,32 +1,96 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+API playground for experiments with Claude. Hono + Node, native ESM, TypeScript.
 
 ## Commands
 
 ```bash
-npm run dev      # Start dev server with hot reload (tsx watch)
-npm run build    # Compile TypeScript to dist/
-npm run start    # Run compiled output from dist/
+npm run dev         # dev server with hot reload (tsx watch) on http://localhost:3000
+npm run typecheck   # tsc --noEmit — run before claiming done
+npm run build       # compile to dist/
+npm run start       # run compiled output
+npm run bench -- --photos <dir> --configs opus-low,sonnet-low   # photo benchmark, see bench/README.md
+npm run bench:summary -- bench/runs/<run>                        # fold a run into summary.md / .csv
 ```
 
-No test suite is configured.
+No test suite. `.env` is NOT loaded by any script: the Agent SDK runs on the personal
+Claude subscription; an `ANTHROPIC_API_KEY` exported in the shell may switch it to key
+billing — keep it out of the environment.
 
-## Architecture
+## Layout
 
-A minimal Node.js/TypeScript HTTP server (`index.ts`) that demonstrates the Claude Agent SDK integration.
+```
+src/
+  main.ts                  serve on :3000
+  app.ts                   Hono app, logger, mounts feature routes, global error handler (LlmError → 502)
+  models.ts                default model + alias → full id (HTTP side only)
+  images/normalize.ts      sharp: EXIF rotation, ≤ 1568 px long edge, JPEG q85 — every photo passes through it
+  llm/                     the LLM port — rules in llm/README.md, read them first
+    port.ts                LlmPort, LlmRequest, LlmResult, LlmUsage, LlmError
+    pricing.ts             price table + cost from token counts
+    adapters/              one file per backend (today: agent-sdk.adapter.ts)
+    index.ts               createLlm() — the single swap point
+  nutrition/               POST /nutrition/photo — macros from a food / label photo
+    nutrition.prompt.ts    system prompt + JSON schema + result types
+    nutrition.request.ts   multipart body → validated service input
+    nutrition.service.ts   the use case: normalize photo → port call → portions → cost → result
+    nutrition.calc.ts      portion macros + bread units (pure)
+    nutrition.route.ts     parse → service → json, nothing else
+bench/                     photo benchmark: run.mjs + summarize.mjs + reports/ (photos/ and runs/ are git-ignored)
+```
 
-**Request flow:**
-- `GET /home` → static "hello world" response
-- `GET /dice/:number` → calls `main()`, which runs an `AnthropicSdc.query()` agentic loop and returns the structured JSON result
+## Rules
 
-**Claude Agent SDK usage pattern:**
-- `AnthropicSdc.query()` returns an async generator; iterate with `for await`
-- Filter for `message.type === "result" && message.subtype === "success"` to get the final output
-- `message.result` contains the text result; `message.structured_output` contains the JSON Schema-validated object
-- `outputFormat.type = "json_schema"` with a schema object enables structured outputs
+- All LLM calls go through `LlmPort` (`src/llm`). Never import a vendor SDK outside
+  `src/llm/adapters/`. The port contract and the forbidden list live in `src/llm/README.md`.
+- Layering inside a feature: **route** parses the request and returns the service result
+  as JSON; **request** file turns the wire body into a validated, typed service input;
+  **service** owns the use case (port call, domain calculations, cost, timing) and returns a
+  plain result object; **calc** files hold pure helpers. No domain logic in a route.
+- Errors: throw, don't map in routes — `app.onError` in `app.ts` turns `LlmError` into
+  `502 { error, code }` and anything else into `500`. Validation failures return `400 { error }`.
+- A feature = its own folder with `*.prompt.ts` / `*.request.ts` / `*.service.ts` /
+  `*.route.ts`; routes are mounted in `app.ts`.
+- Code, comments and docs in English.
 
-**Key dependencies:**
-- `hono` + `@hono/node-server` — HTTP routing
-- `@anthropic-ai/claude-agent-sdk` — agentic query loop with tool use
-- `@anthropic-ai/sdk` — base Anthropic API client (imported but currently used indirectly)
+## Models
+
+Aliases accepted on the HTTP side (`src/models.ts`) and the pinned id the port receives:
+
+| alias    | id                          |
+| -------- | --------------------------- |
+| `fable`  | `claude-fable-5-1`          |
+| `opus`   | `claude-opus-5` (default)   |
+| `sonnet` | `claude-sonnet-5`           |
+| `haiku`  | `claude-haiku-4-5-20251001` |
+
+Prices in `src/llm/pricing.ts`, verified 2026-09-20; cache writes are billed as 1-hour entries
+(2× input), which is what the Agent SDK backend creates. Haiku 4.5 does not support `effort`
+on the Messages API; the Agent SDK tolerates it.
+
+Default = opus at `effort: low`, picked on the 2026-09-20 photo benchmark (13 photos ×
+5 configs, then 4 originals × 6 configs): no structured-output retries, the most reliable
+label reading, fastest responses; higher effort bought no accuracy. Sonnet retries the
+structured output on the live backend in most calls (see `src/llm/README.md`, "Known
+non-equivalence"), which with caching off makes it dearer than opus; haiku misreads blurry
+labels.
+
+## Endpoints
+
+- `GET /` — health.
+- `POST /nutrition/photo` — `multipart/form-data`: `photo` (JPEG/PNG/WebP/GIF, ≤ 5 MB,
+  required), `grams` (positive number, optional — skips the weight estimate), `hint`
+  (text, optional), `model` (alias or full id, default opus), `effort` (`low` | `medium` |
+  `high` | `max`, default low). The photo is normalized before the model sees it: EXIF
+  rotation applied, long edge capped at 1568 px (never enlarged), re-encoded as JPEG q85,
+  metadata dropped — 1568 px stays under every model tier's downscale limit and costs
+  ~2.4k visual tokens at 4:3 (`⌈w/28⌉ × ⌈h/28⌉`). Prompt caching is off for this call: a photo
+  is never sent twice. Returns `items[]` with per-100 g macros, the portion (given or
+  estimated grams → kcal/protein/fat/carbs/xe) and `stats` (model, effort, the normalized
+  `image` size, usage, estimated cost, duration).
+
+  ```bash
+  curl -s -F photo=@apple.jpg -F grams=180 http://localhost:3000/nutrition/photo | jq
+  ```
+
+  Postman: import `postman/claude-test.postman_collection.json` (variable `baseUrl`).
