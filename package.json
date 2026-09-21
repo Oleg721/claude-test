@@ -8,7 +8,9 @@
     "dev": "tsx watch src/main.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc",
-    "start": "node dist/main.js"
+    "start": "node dist/main.js",
+    "bench": "node bench/run.mjs",
+    "bench:summary": "node bench/summarize.mjs"
   },
   "license": "ISC",
   "dependencies": {
