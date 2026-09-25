@@ -56,6 +56,7 @@ function buildOptions(request: LlmRequest): Options {
     settingSources: [], // no CLAUDE.md / settings.json leakage into the request
     persistSession: false,
     ...(request.effort ? { effort: request.effort } : {}),
+    ...(request.thinking === false ? { thinking: { type: 'disabled' as const } } : {}),
     ...(request.schema ? { outputFormat: { type: 'json_schema' as const, schema: request.schema } } : {}),
     // the SDK has no per-request cache switch; the env flag is the closest thing
     ...(request.cache === false ? { env: { ...process.env, DISABLE_PROMPT_CACHING: '1' } } : {}),

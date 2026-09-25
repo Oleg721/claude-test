@@ -10,7 +10,7 @@ const DEFAULT_EFFORT: LlmEffort = 'low'
 
 export type RequestError = { error: string }
 
-/** multipart/form-data → service input: photo (file, required), grams?, hint?, model?, effort? */
+/** multipart/form-data → service input: photo (file, required), grams?, hint?, model?, effort?, thinking? */
 export async function parsePhotoRequest(body: Record<string, unknown>): Promise<AnalyzePhotoInput | RequestError> {
   const photo = body['photo']
   if (!(photo instanceof File)) {
@@ -34,6 +34,12 @@ export async function parsePhotoRequest(body: Record<string, unknown>): Promise<
     return { error: `effort must be one of ${EFFORTS.join(', ')}` }
   }
 
+  const rawThinking = optionalString(body['thinking'])
+  const thinking = rawThinking === undefined ? true : { on: true, off: false }[rawThinking]
+  if (thinking === undefined) {
+    return { error: 'thinking must be "on" or "off"' }
+  }
+
   const rawGrams = optionalString(body['grams'])
   const grams = rawGrams === undefined ? null : Number(rawGrams)
   const gramsInvalid = grams !== null && !(Number.isFinite(grams) && grams > 0)
@@ -43,7 +49,7 @@ export async function parsePhotoRequest(body: Record<string, unknown>): Promise<
 
   const bytes = Buffer.from(await photo.arrayBuffer())
 
-  return { photo: bytes, model, effort, hint: optionalString(body['hint']) ?? null, grams }
+  return { photo: bytes, model, effort, thinking, hint: optionalString(body['hint']) ?? null, grams }
 }
 
 function optionalString(value: unknown): string | undefined {

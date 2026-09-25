@@ -10,8 +10,8 @@ Use only capabilities that have a counterpart on every target.
 
 ## Port surface
 In:  system prompt (plain string), user prompt, model (full id), optional JSON
-     Schema, effort, cache on/off, images (base64 + media type: JPEG, PNG, WebP,
-     GIF).
+     Schema, effort, cache on/off, thinking on/off, images (base64 + media type:
+     JPEG, PNG, WebP, GIF).
 Out: text, parsed data, normalized usage {input, cacheWrite, cacheRead, output}.
 Nothing else crosses the boundary.
 
@@ -69,3 +69,6 @@ aliases (`sonnet`, `opus`) · image sources other than base64 (URL, file ids).
   both backends accept image content blocks.
 - 2026-09-20 — cache-write multiplier set to 2 (1-hour entries); image and
   structured-output non-equivalences recorded after the photo benchmark.
+- 2026-09-26 — thinking on/off added: both backends take the same three-state
+  `thinking` config (adaptive / enabled / disabled); the port exposes only the
+  off switch, on = the backend's default.

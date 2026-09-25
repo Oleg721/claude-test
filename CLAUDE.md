@@ -36,6 +36,11 @@ src/
     nutrition.service.ts   the use case: normalize photo → port call → portions → cost → result
     nutrition.calc.ts      portion macros + bread units (pure)
     nutrition.route.ts     parse → service → json, nothing else
+  portion/                 POST /portion/photo — grams from a photo plus Plate's Measure JSON (LiDAR geometry)
+    portion.prompt.ts      system prompt (verbatim from health/docs/nutrition/portion-prompts-v3.md) + schema + types
+    portion.request.ts     /nutrition/photo's fields plus `measurement`; strips the calibration `note`
+    portion.service.ts     normalize photo → port call → edible portion → cost → result
+    portion.route.ts       parse → service → json
 bench/                     photo benchmark: run.mjs + summarize.mjs + reports/ (photos/ and runs/ are git-ignored)
 ```
 
@@ -81,7 +86,8 @@ labels.
 - `POST /nutrition/photo` — `multipart/form-data`: `photo` (JPEG/PNG/WebP/GIF, ≤ 5 MB,
   required), `grams` (positive number, optional — skips the weight estimate), `hint`
   (text, optional), `model` (alias or full id, default opus), `effort` (`low` | `medium` |
-  `high` | `max`, default low). The photo is normalized before the model sees it: EXIF
+  `high` | `max`, default low), `thinking` (`on` | `off`, default on = the backend's default;
+  off disables extended thinking). The photo is normalized before the model sees it: EXIF
   rotation applied, long edge capped at 1568 px (never enlarged), re-encoded as JPEG q85,
   metadata dropped — 1568 px stays under every model tier's downscale limit and costs
   ~2.4k visual tokens at 4:3 (`⌈w/28⌉ × ⌈h/28⌉`). Prompt caching is off for this call: a photo
@@ -94,3 +100,17 @@ labels.
   ```
 
   Postman: import `postman/claude-test.postman_collection.json` (variable `baseUrl`).
+
+- `POST /portion/photo` — the same fields as `/nutrition/photo` plus `measurement` (text,
+  required): the JSON Plate's Measure screen saves next to the still (footprint, heights,
+  volume, plane fit, view angle…). The model turns that geometry into grams by the algorithm
+  in `health/docs/nutrition/portion-prompts-v3.md`; the prompt in `src/portion/portion.prompt.ts`
+  is a verbatim copy, and a new prompt version is a new file there first. `measurement.note`
+  (the kitchen scale during calibration) is removed before the call. Returns `items[]` with
+  `portionGrams` (the item as it lies in the photo, with low/high), `edible` (grams, share,
+  what is removed — null when the whole item is eaten), `geometry` (volume × shape factor ×
+  density the model used), the `portion` macros of what is eaten, and the same `stats`.
+
+  ```bash
+  curl -s -F photo=@still.jpg -F "measurement=$(cat still.json)" http://localhost:3000/portion/photo | jq
+  ```

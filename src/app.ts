@@ -3,6 +3,7 @@ import { logger } from 'hono/logger'
 
 import { createLlm, LlmError } from './llm/index.js'
 import { nutritionRoutes } from './nutrition/nutrition.route.js'
+import { portionRoutes } from './portion/portion.route.js'
 
 export function createApp(): Hono {
   const llm = createLlm()
@@ -11,6 +12,7 @@ export function createApp(): Hono {
   app.use('*', logger())
   app.get('/', (c) => c.json({ ok: true }))
   app.route('/nutrition', nutritionRoutes(llm))
+  app.route('/portion', portionRoutes(llm))
 
   app.onError((err, c) => {
     if (err instanceof LlmError) {

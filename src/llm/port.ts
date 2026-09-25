@@ -22,6 +22,8 @@ export type LlmRequest = {
   effort?: LlmEffort
   /** Prompt-caching hint; a backend that cannot control caching ignores it. Default true. */
   cache?: boolean
+  /** Extended thinking. Default true = the backend's own default; false switches it off. */
+  thinking?: boolean
   images?: LlmImage[]
 }
 

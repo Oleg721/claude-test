@@ -77,8 +77,16 @@ for (const run of runs) {
       per100Fat: item.per100g?.fat,
       per100Carbs: item.per100g?.carbs,
       gramsEstimate: item.portionGrams?.estimate,
+      gramsLow: item.portionGrams?.low,
+      gramsHigh: item.portionGrams?.high,
       gramsConfidence: item.portionGrams?.confidence,
       gramsBasis: item.portionGrams?.basis,
+      edibleGrams: item.edible?.grams,
+      edibleShare: item.edible?.share,
+      edibleRemoved: item.edible?.removed,
+      volumeMl: item.geometry?.volumeMl,
+      shapeFactor: item.geometry?.shapeFactor,
+      densityGPerMl: item.geometry?.densityGPerMl,
       portionKcal: item.portion?.kcal,
       portionProtein: item.portion?.protein,
       portionFat: item.portion?.fat,
@@ -92,7 +100,8 @@ for (const run of runs) {
 // ---------- CSV ----------
 const columns = [
   'photo', 'file', 'label', 'truthGrams', 'config', 'ok', 'httpStatus', 'error', 'itemIndex', 'itemCount', 'name', 'brand', 'source',
-  'per100Kcal', 'per100Protein', 'per100Fat', 'per100Carbs', 'gramsEstimate', 'gramsConfidence', 'gramsBasis',
+  'per100Kcal', 'per100Protein', 'per100Fat', 'per100Carbs', 'gramsEstimate', 'gramsLow', 'gramsHigh', 'gramsConfidence', 'gramsBasis',
+  'edibleGrams', 'edibleShare', 'edibleRemoved', 'volumeMl', 'shapeFactor', 'densityGPerMl',
   'portionKcal', 'portionProtein', 'portionFat', 'portionCarbs', 'portionXe',
   'turns', 'imageWidth', 'imageHeight', 'tokensInput', 'tokensCacheWrite', 'tokensCacheRead', 'tokensOutput', 'costUsd', 'durationMs', 'elapsedMs', 'notes',
 ]
@@ -106,7 +115,7 @@ await writeFile(join(runDir, 'summary.csv'), [columns.join(','), ...rows.map((ro
 const md = []
 md.push(`# Photo benchmark — ${manifest?.createdAt?.slice(0, 10) ?? runDir}`, '')
 md.push(`Calls: ${runs.length} (${runs.filter((run) => run.ok).length} ok). Photos: ${photos.length}. Configs: ${configs.join(', ')}.`, '')
-md.push('per 100 g as the model reported it; portion = per 100 g × estimated grams (server-side); tokens: in = uncached input, cache w/r = prompt-cache write/read, out = output; cost = the server estimate (`stats.cost`); ⟲ = the call needed a second turn (structured-output retry).', '')
+md.push('per 100 g as the model reported it; portion = per 100 g × estimated grams (server-side; for a measured still, × the edible grams); tokens: in = uncached input, cache w/r = prompt-cache write/read, out = output; cost = the server estimate (`stats.cost`); ⟲ = the call needed a second turn (structured-output retry). Stills sent with a Measure JSON (`/portion/photo`) also show low–high, the edible part and the geometry the model used.', '')
 
 md.push('## Totals per config', '')
 md.push('| config | calls | ok | retries | Σ cost USD | avg cost | min / max cost | avg in | avg cache w | avg cache r | avg out | avg s | max s |')
@@ -133,7 +142,8 @@ if (weighed.length > 0) {
     const truthXe = typeof photo.carbsPer100 === 'number' ? Math.round((photo.grams * photo.carbsPer100) / 100 / BREAD_UNIT_CARBS * 10) / 10 : null
     const cells = configs.map((config) => {
       const run = runs.find((candidate) => candidate.photoId === photo.id && configOf(candidate) === config)
-      const item = run?.response?.items?.[0]
+      const items = run?.response?.items ?? []
+      const item = items.find((candidate) => candidate.measured) ?? items[0]
       if (!item) {
         return '—'
       }
@@ -169,12 +179,12 @@ for (const photo of photos) {
     continue
   }
   md.push(`### ${photo.id} — ${label(photo)}${typeof photo.grams === 'number' ? ` · ${photo.grams} г` : ''}`, '', `File: \`${photo.file}\``, '')
-  md.push('| config | name | source | per 100 g: kcal / P / F / C | grams (conf) | basis | portion: kcal / P / F / C / ХЕ | image | tokens in / cache w / cache r / out | cost USD | s | notes |')
-  md.push('|---|---|---|---|---|---|---|---|---|---|---|---|')
+  md.push('| config | name | source | per 100 g: kcal / P / F / C | grams (conf) | edible · geometry | basis | portion: kcal / P / F / C / ХЕ | image | tokens in / cache w / cache r / out | cost USD | s | notes |')
+  md.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|')
   for (const run of group) {
     const config = configOf(run)
     if (!run.ok || !run.response?.stats) {
-      md.push(`| ${config} | **ERROR ${run.httpStatus}** ${cell(run.error || run.response?.error)} |  |  |  |  |  |  |  |  | ${num(run.elapsedMs / 1000, 1)} |  |`)
+      md.push(`| ${config} | **ERROR ${run.httpStatus}** ${cell(run.error || run.response?.error)} |  |  |  |  |  |  |  |  |  | ${num(run.elapsedMs / 1000, 1)} |  |`)
       continue
     }
     const stats = run.response.stats
@@ -183,17 +193,21 @@ for (const photo of photos) {
     const cost = `${num(stats.cost?.totalUsd, 4)}${turns(stats) > 1 ? ' ⟲' : ''}`
     const items = run.response.items
     if (items.length === 0) {
-      md.push(`| ${config} | (no items) |  |  |  |  |  | ${image} | ${tokens} | ${cost} | ${num(stats.durationMs / 1000, 1)} |  |`)
+      md.push(`| ${config} | (no items) |  |  |  |  |  |  | ${image} | ${tokens} | ${cost} | ${num(stats.durationMs / 1000, 1)} |  |`)
       continue
     }
     items.forEach((item, index) => {
       const first = index === 0
       const per100 = `${cell(item.per100g.kcal)} / ${cell(item.per100g.protein)} / ${cell(item.per100g.fat)} / ${cell(item.per100g.carbs)}`
-      const grams = item.portionGrams.estimate === null ? `— (${item.portionGrams.confidence})` : `${item.portionGrams.estimate} (${item.portionGrams.confidence})`
+      const range = typeof item.portionGrams.low === 'number' ? ` ${item.portionGrams.low}–${item.portionGrams.high}` : ''
+      const grams = item.portionGrams.estimate === null ? `— (${item.portionGrams.confidence})` : `${item.portionGrams.estimate}${range} (${item.portionGrams.confidence})`
+      const edible = item.edible ? `${item.edible.grams} g (${item.edible.share}, ${item.edible.removed})` : item.edible === null ? 'whole' : ''
+      const geometry = item.geometry ? `${item.geometry.volumeMl} ml × ${item.geometry.shapeFactor} × ${item.geometry.densityGPerMl}` : ''
+      const measured = [edible, geometry].filter(Boolean).join(' · ')
       const portion = item.portion ? `${item.portion.kcal} / ${item.portion.protein} / ${item.portion.fat} / ${item.portion.carbs} / ${item.portion.xe}` : '—'
       const name = item.brand ? `${item.name} (${item.brand})` : item.name
       const notes = cell(item.notes).replace(/\|/g, '\\|').replace(/\n/g, ' ')
-      md.push(`| ${first ? config : '↳'} | ${name} | ${item.source} | ${per100} | ${grams} | ${cell(item.portionGrams.basis)} | ${portion} | ${first ? image : ''} | ${first ? tokens : ''} | ${first ? cost : ''} | ${first ? num(stats.durationMs / 1000, 1) : ''} | ${notes} |`)
+      md.push(`| ${first ? config : '↳'} | ${name} | ${cell(item.source)} | ${per100} | ${grams} | ${measured} | ${cell(item.portionGrams.basis)} | ${portion} | ${first ? image : ''} | ${first ? tokens : ''} | ${first ? cost : ''} | ${first ? num(stats.durationMs / 1000, 1) : ''} | ${notes} |`)
     })
   }
   md.push('')

@@ -14,6 +14,7 @@ export type AnalyzePhotoInput = {
   photo: Buffer
   model: string
   effort: LlmEffort
+  thinking: boolean
   hint: string | null
   grams: number | null
 }
@@ -45,6 +46,7 @@ export async function analyzePhoto(llm: LlmPort, input: AnalyzePhotoInput): Prom
     prompt: buildNutritionPrompt({ hint: input.hint, grams: input.grams }),
     model: input.model,
     effort: input.effort,
+    thinking: input.thinking,
     schema: NUTRITION_SCHEMA,
     // a photo is never sent twice, and a cache write costs 2x plain input on the live backend
     cache: false,
@@ -55,6 +57,7 @@ export async function analyzePhoto(llm: LlmPort, input: AnalyzePhotoInput): Prom
   const stats = {
     model: input.model,
     effort: input.effort,
+    thinking: input.thinking,
     image: { width: image.width, height: image.height, bytes: image.bytes.length },
     usage: result.usage,
     cost: estimateCost(input.model, result.usage),

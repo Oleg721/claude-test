@@ -17,11 +17,15 @@ open bench/runs/<date>-fruit/summary.md
 Options of `bench/run.mjs`:
 
 - `--photos <dir>` — JPEG / PNG / WebP / GIF, sorted by name, numbered `p01…` in that order (the mapping is written to `manifest.json`).
-- `--configs a,b,c` — `<model>-<effort>`, model = alias (`opus`, `sonnet`, `haiku`, `fable`) or full id, effort = `low | medium | high | max`. Default `opus-low`.
+- `--configs a,b,c` — `<model>-<effort>[-nothink]`, model = alias (`opus`, `sonnet`, `haiku`, `fable`) or full id, effort = `low | medium | high | max`, `-nothink` sends `thinking=off`. Default `opus-low`.
 - `--out <dir>` — run folder, default `bench/runs/<date>-<photos folder name>`.
 - `--concurrency 3` — parallel calls. `--resume` — skip calls whose raw file already exists (rerun after failures).
 
 No hint and no grams are sent: the benchmark measures what the model does on its own.
+
+## Measured stills
+
+A photo with a JSON of the same name next to it (`<uuid>.jpg` + `<uuid>.json`, the pair Plate's Measure screen saves) is sent to `POST /portion/photo` with that JSON as `measurement`; the other photos still go to `/nutrition/photo`, so one folder may hold both kinds. HEIC stills are converted with `sips` into `<run>/jpeg/` first (sharp cannot decode HEIC). The record's `note`, when it is a weight (`157 g`), becomes the photo's truth grams unless `truth.json` gives one; the server strips the note before the model sees it. The tables then show the low–high range, the edible part and the geometry the model used; the accuracy section compares `portionGrams.estimate` (the item as it lies, peel included) with the scale, and the ХЕ column is from the edible grams, so against a whole-item truth it reads low by the peel.
 
 ## Ground truth
 
@@ -47,6 +51,9 @@ Put a `truth.json` next to the photos to get the accuracy section (weight error 
 Reading the tables: cost is the server's `stats.cost` (price table in `src/llm/pricing.ts`); `⟲` marks a call that needed a second turn — the Agent SDK backend retries a structured output that failed its schema, and that retry carries a ~29k-token prefix (Sonnet 5 does it in most calls, Opus 5 and Haiku 4.5 never — see `src/llm/README.md`). `image` is the size the model actually saw after `src/images/normalize.ts`.
 
 ## Reports
+
+- `reports/2026-09-26-measure-v3.md` — the first two Measure stills (apple 314 g, banana 157 g in its peel) × opus/sonnet/haiku at low, prompt v3: 315 and 157 g on every model.
+- `reports/2026-09-26-measure-v3-nothink.md` — the same with `thinking=off`: identical grams; haiku from $0.02–0.05 and 24–90 s down to $0.01 and 11 s, opus and sonnet unchanged.
 
 - `reports/2026-09-20-preview-1024px.md` — 13 photos (9 fruits, 4 labels) × haiku/sonnet/opus, low and medium; 1024 px previews, before normalization existed.
 - `reports/2026-09-20-originals-2000px.md` — the 4 hardest fruit photos as originals (the backend capped them at 2000 px) × sonnet/opus × low/medium/high.
