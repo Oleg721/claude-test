@@ -1,4 +1,4 @@
-import type { LlmEffort } from '../llm/index.js'
+import { LLM_BACKENDS, type LlmBackend, type LlmEffort } from '../llm/index.js'
 import { KNOWN_MODELS, resolveModel } from '../models.js'
 import type { AnalyzePhotoInput } from './nutrition.service.js'
 
@@ -7,11 +7,15 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024
 const PHOTO_MEDIA_TYPES: readonly string[] = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const EFFORTS: readonly LlmEffort[] = ['low', 'medium', 'high', 'max']
 const DEFAULT_EFFORT: LlmEffort = 'low'
+const DEFAULT_BACKEND: LlmBackend = 'agent-sdk'
 
 export type RequestError = { error: string }
 
-/** multipart/form-data → service input: photo (file, required), grams?, hint?, model?, effort?, thinking? */
-export async function parsePhotoRequest(body: Record<string, unknown>): Promise<AnalyzePhotoInput | RequestError> {
+/** multipart/form-data → service input: photo (file, required), grams?, hint?, model?, effort?, thinking?, backend? */
+export async function parsePhotoRequest(
+  body: Record<string, unknown>,
+  available: readonly LlmBackend[],
+): Promise<AnalyzePhotoInput | RequestError> {
   const photo = body['photo']
   if (!(photo instanceof File)) {
     return { error: 'multipart field "photo" (file) is required' }
@@ -34,6 +38,15 @@ export async function parsePhotoRequest(body: Record<string, unknown>): Promise<
     return { error: `effort must be one of ${EFFORTS.join(', ')}` }
   }
 
+  const rawBackend = optionalString(body['backend'])
+  const backend = rawBackend === undefined ? DEFAULT_BACKEND : LLM_BACKENDS.find((known) => known === rawBackend)
+  if (backend === undefined) {
+    return { error: `backend must be one of ${LLM_BACKENDS.join(', ')}` }
+  }
+  if (!available.includes(backend)) {
+    return { error: `backend "${backend}" is not configured — put its key in .env; available: ${available.join(', ')}` }
+  }
+
   const rawThinking = optionalString(body['thinking'])
   const thinking = rawThinking === undefined ? true : { on: true, off: false }[rawThinking]
   if (thinking === undefined) {
@@ -49,7 +62,7 @@ export async function parsePhotoRequest(body: Record<string, unknown>): Promise<
 
   const bytes = Buffer.from(await photo.arrayBuffer())
 
-  return { photo: bytes, model, effort, thinking, hint: optionalString(body['hint']) ?? null, grams }
+  return { photo: bytes, backend, model, effort, thinking, hint: optionalString(body['hint']) ?? null, grams }
 }
 
 function optionalString(value: unknown): string | undefined {

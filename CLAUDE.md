@@ -13,9 +13,11 @@ npm run bench -- --photos <dir> --configs opus-low,sonnet-low   # photo benchmar
 npm run bench:summary -- bench/runs/<run>                        # fold a run into summary.md / .csv
 ```
 
-No test suite. `.env` is NOT loaded by any script: the Agent SDK runs on the personal
-Claude subscription; an `ANTHROPIC_API_KEY` exported in the shell may switch it to key
-billing — keep it out of the environment.
+No test suite. `main.ts` loads `.env` (git-ignored) for the keyed backends: `ANTHROPIC_API_KEY`
+enables `backend=anthropic`, `OPENROUTER_API_KEY` enables `backend=openrouter`. The default
+backend stays the Agent SDK on the personal Claude subscription; its adapter hides the key and
+route variables (`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`,
+`OPENROUTER_API_KEY`) from the CLI, so a key in `.env` never switches the subscription to key billing.
 
 ## Layout
 
@@ -28,8 +30,8 @@ src/
   llm/                     the LLM port — rules in llm/README.md, read them first
     port.ts                LlmPort, LlmRequest, LlmResult, LlmUsage, LlmError
     pricing.ts             price table + cost from token counts
-    adapters/              one file per backend (today: agent-sdk.adapter.ts)
-    index.ts               createLlm() — the single swap point
+    adapters/              one file per backend: agent-sdk (subscription), messages-api (Anthropic / OpenRouter by key)
+    index.ts               createLlm() — the configured set of backends, one line per provider
   nutrition/               POST /nutrition/photo — macros from a food / label photo
     nutrition.prompt.ts    system prompt + JSON schema + result types
     nutrition.request.ts   multipart body → validated service input
@@ -48,6 +50,7 @@ bench/                     photo benchmark: run.mjs + summarize.mjs + reports/ (
 
 - All LLM calls go through `LlmPort` (`src/llm`). Never import a vendor SDK outside
   `src/llm/adapters/`. The port contract and the forbidden list live in `src/llm/README.md`.
+  Routes take the `LlmPorts` set and pick the adapter by the request's `backend`.
 - Layering inside a feature: **route** parses the request and returns the service result
   as JSON; **request** file turns the wire body into a validated, typed service input;
   **service** owns the use case (port call, domain calculations, cost, timing) and returns a
@@ -76,7 +79,7 @@ on the Messages API; the Agent SDK tolerates it.
 Default = opus at `effort: low`, picked on the 2026-09-20 photo benchmark (13 photos ×
 5 configs, then 4 originals × 6 configs): no structured-output retries, the most reliable
 label reading, fastest responses; higher effort bought no accuracy. Sonnet retries the
-structured output on the live backend in most calls (see `src/llm/README.md`, "Known
+structured output on the Agent SDK backend in most calls (see `src/llm/README.md`, "Known
 non-equivalence"), which with caching off makes it dearer than opus; haiku misreads blurry
 labels.
 
@@ -87,13 +90,14 @@ labels.
   required), `grams` (positive number, optional — skips the weight estimate), `hint`
   (text, optional), `model` (alias or full id, default opus), `effort` (`low` | `medium` |
   `high` | `max`, default low), `thinking` (`on` | `off`, default on = the backend's default;
-  off disables extended thinking). The photo is normalized before the model sees it: EXIF
+  off disables extended thinking), `backend` (`agent-sdk` | `anthropic` | `openrouter`, default
+  agent-sdk; a keyed backend without its key in the environment or `.env` is a 400). The photo is normalized before the model sees it: EXIF
   rotation applied, long edge capped at 1568 px (never enlarged), re-encoded as JPEG q85,
   metadata dropped — 1568 px stays under every model tier's downscale limit and costs
   ~2.4k visual tokens at 4:3 (`⌈w/28⌉ × ⌈h/28⌉`). Prompt caching is off for this call: a photo
   is never sent twice. Returns `items[]` with per-100 g macros, the portion (given or
-  estimated grams → kcal/protein/fat/carbs/xe) and `stats` (model, effort, the normalized
-  `image` size, usage, estimated cost, duration).
+  estimated grams → kcal/protein/fat/carbs/xe) and `stats` (backend, model, effort, thinking,
+  the normalized `image` size, usage, estimated cost, duration).
 
   ```bash
   curl -s -F photo=@apple.jpg -F grams=180 http://localhost:3000/nutrition/photo | jq

@@ -1,5 +1,5 @@
 import { normalizeImage } from '../images/normalize.js'
-import { estimateCost, type LlmEffort, type LlmPort } from '../llm/index.js'
+import { estimateCost, type LlmBackend, type LlmEffort, type LlmPort } from '../llm/index.js'
 import { computePortion, type Portion } from '../nutrition/nutrition.calc.js'
 import type { AnalyzePhotoResult } from '../nutrition/nutrition.service.js'
 import {
@@ -12,6 +12,7 @@ import {
 
 export type AnalyzePortionInput = {
   photo: Buffer
+  backend: LlmBackend
   model: string
   effort: LlmEffort
   thinking: boolean
@@ -41,7 +42,7 @@ export async function analyzePortion(llm: LlmPort, input: AnalyzePortionInput): 
     effort: input.effort,
     thinking: input.thinking,
     schema: PORTION_SCHEMA,
-    // a photo is never sent twice, and a cache write costs 2x plain input on the live backend
+    // a photo is never sent twice, and a cache write costs 2x plain input on the Agent SDK backend
     cache: false,
     images: [{ mediaType: image.mediaType, base64: image.bytes.toString('base64') }],
   })
@@ -51,6 +52,7 @@ export async function analyzePortion(llm: LlmPort, input: AnalyzePortionInput): 
     portion: computePortion(item.per100g, item.edible?.grams ?? item.portionGrams.estimate),
   }))
   const stats = {
+    backend: input.backend,
     model: input.model,
     effort: input.effort,
     thinking: input.thinking,

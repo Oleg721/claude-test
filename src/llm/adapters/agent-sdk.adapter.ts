@@ -9,7 +9,7 @@ import {
   type LlmUsage,
 } from '../port.js'
 
-/** The one live adapter. Everything vendor-specific stays inside this file — see ../README.md. */
+/** The Claude subscription through the Agent SDK. Everything vendor-specific stays inside this file — see ../README.md. */
 export class AgentSdkAdapter implements LlmPort {
   async complete<T = unknown>(request: LlmRequest): Promise<LlmResult<T>> {
     const options = buildOptions(request)
@@ -58,9 +58,20 @@ function buildOptions(request: LlmRequest): Options {
     ...(request.effort ? { effort: request.effort } : {}),
     ...(request.thinking === false ? { thinking: { type: 'disabled' as const } } : {}),
     ...(request.schema ? { outputFormat: { type: 'json_schema' as const, schema: request.schema } } : {}),
-    // the SDK has no per-request cache switch; the env flag is the closest thing
-    ...(request.cache === false ? { env: { ...process.env, DISABLE_PROMPT_CACHING: '1' } } : {}),
+    env: childEnv(request.cache),
   }
+}
+
+// anything the CLI would read as a credential or a route: it answers from the subscription, never from a key in .env
+const HIDDEN_FROM_CLI = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'OPENROUTER_API_KEY']
+
+// the SDK has no per-request cache switch, the env flag is the closest thing
+function childEnv(cache: boolean | undefined): NodeJS.ProcessEnv {
+  const env = { ...process.env }
+  for (const name of HIDDEN_FROM_CLI) {
+    delete env[name]
+  }
+  return cache === false ? { ...env, DISABLE_PROMPT_CACHING: '1' } : env
 }
 
 // content blocks (images) only travel in the streaming prompt form

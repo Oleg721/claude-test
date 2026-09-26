@@ -1,7 +1,7 @@
 {
   "name": "claude-test",
   "version": "1.0.0",
-  "description": "API playground: one LLM port, one live adapter, feature routes on top",
+  "description": "API playground: one LLM port, several adapters picked per request, feature routes on top",
   "main": "dist/main.js",
   "type": "module",
   "scripts": {

@@ -6,13 +6,13 @@ import { nutritionRoutes } from './nutrition/nutrition.route.js'
 import { portionRoutes } from './portion/portion.route.js'
 
 export function createApp(): Hono {
-  const llm = createLlm()
+  const llms = createLlm()
   const app = new Hono()
 
   app.use('*', logger())
   app.get('/', (c) => c.json({ ok: true }))
-  app.route('/nutrition', nutritionRoutes(llm))
-  app.route('/portion', portionRoutes(llm))
+  app.route('/nutrition', nutritionRoutes(llms))
+  app.route('/portion', portionRoutes(llms))
 
   app.onError((err, c) => {
     if (err instanceof LlmError) {

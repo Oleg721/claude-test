@@ -1,13 +1,13 @@
 // Sends every photo of a folder to the server once per model/effort config and keeps one raw JSON per call.
 // A photo with a Measure JSON next to it (same name, .json) goes to POST /portion/photo with it; the rest to POST /nutrition/photo.
-// Usage: node bench/run.mjs --photos <dir> [--configs opus-low,sonnet-medium,haiku-low-nothink] [--out bench/runs/<name>] [--concurrency 3] [--base-url http://localhost:3000] [--resume]
+// Usage: node bench/run.mjs --photos <dir> [--configs opus-low,haiku-low-nothink,sonnet-low-nothink@openrouter] [--out bench/runs/<name>] [--concurrency 3] [--base-url http://localhost:3000] [--resume]
 import { execFile } from 'node:child_process'
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import { parseArgs, promisify } from 'node:util'
 
-const USAGE = 'usage: node bench/run.mjs --photos <dir> [--configs opus-low,sonnet-low,haiku-low-nothink] [--out <run dir>] [--concurrency 3] [--base-url http://localhost:3000] [--resume]'
+const USAGE = 'usage: node bench/run.mjs --photos <dir> [--configs opus-low,haiku-low-nothink,sonnet-low-nothink@openrouter] [--out <run dir>] [--concurrency 3] [--base-url http://localhost:3000] [--resume]'
 const PHOTO_FILE = /\.(jpe?g|png|webp|gif|heic)$/i
 const execFileAsync = promisify(execFile)
 
@@ -33,15 +33,17 @@ const jpegDir = join(runDir, 'jpeg')
 const configs = args.configs.split(',').map(parseConfig)
 const concurrency = Number(args.concurrency)
 
-// "opus-low", "claude-opus-5-low" or "haiku-low-nothink": an optional -nothink suffix, then the effort, the model is the rest (alias or full id)
+// "opus-low", "haiku-low-nothink" or "sonnet-low-nothink@openrouter": the backend after @ (default agent-sdk),
+// an optional -nothink suffix, then the effort; the model is the rest (alias or full id)
 function parseConfig(text) {
-  const thinking = !text.endsWith('-nothink')
-  const core = thinking ? text : text.slice(0, -'-nothink'.length)
+  const [spec, backend = 'agent-sdk'] = text.split('@')
+  const thinking = !spec.endsWith('-nothink')
+  const core = thinking ? spec : spec.slice(0, -'-nothink'.length)
   const at = core.lastIndexOf('-')
-  if (at <= 0) {
-    throw new Error(`config "${text}" must look like <model>-<effort>[-nothink]`)
+  if (at <= 0 || !backend) {
+    throw new Error(`config "${text}" must look like <model>-<effort>[-nothink][@<backend>]`)
   }
-  return { id: text, model: core.slice(0, at), effort: core.slice(at + 1), thinking }
+  return { id: text, model: core.slice(0, at), effort: core.slice(at + 1), thinking, backend }
 }
 
 const files = (await readdir(photosDir)).filter((name) => PHOTO_FILE.test(name)).sort()
@@ -82,6 +84,7 @@ async function runJob({ photo, config }) {
   form.append('model', config.model)
   form.append('effort', config.effort)
   form.append('thinking', config.thinking ? 'on' : 'off')
+  form.append('backend', config.backend)
   const route = photo.measurement ? '/portion/photo' : '/nutrition/photo'
   if (photo.measurement) {
     form.append('measurement', JSON.stringify(photo.measurement))
@@ -111,6 +114,7 @@ async function runJob({ photo, config }) {
     model: config.model,
     effort: config.effort,
     thinking: config.thinking,
+    backend: config.backend,
     requestedAt: new Date(startedAt).toISOString(),
     elapsedMs: Date.now() - startedAt,
     httpStatus: status,

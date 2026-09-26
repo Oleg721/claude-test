@@ -1,9 +1,11 @@
 # LLM access: platform-agnostic rules
 
-**Goal.** Exactly one live adapter at a time. Today: Claude Agent SDK (runs on a
-personal Claude subscription). Later: the Claude Messages API (needs an API key)
-or another provider. Swapping must be an adapter rewrite — never a change to
-calling code.
+**Goal.** Several adapters behind one port, one file each, and the caller never
+knows which one answers. Today: the Claude Agent SDK (the personal subscription,
+always on) and the Messages API with a key — Anthropic's own or OpenRouter's,
+the same protocol at another URL. The request picks the backend (`backend`
+field); adding a provider is a new adapter file plus one line in `index.ts`,
+never a change to calling code.
 
 **Core rule.** The port is defined by the *weakest* backend, not the richest.
 Use only capabilities that have a counterpart on every target.
@@ -45,6 +47,26 @@ aliases (`sonnet`, `opus`) · image sources other than base64 (URL, file ids).
   a process-wide env flag. The `cache` flag is a hint; usage fields still report
   whatever the backend did. The Agent SDK writes 1-hour entries (2× input price);
   `pricing.ts` assumes that multiplier.
+- Backends by key: `ANTHROPIC_API_KEY` → `anthropic`, `OPENROUTER_API_KEY` →
+  `openrouter`, read from the environment or `.env` (loaded at startup by
+  `process.loadEnvFile`, which never overrides an exported variable). Anthropic
+  takes the key as `x-api-key`, OpenRouter only as `Authorization: Bearer` (the
+  SDK's `authToken`); the adapter pins both and the base URL, or the SDK would
+  fall back to `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL`
+  from the environment. The Agent SDK adapter strips those three and
+  `OPENROUTER_API_KEY` from the CLI's environment, or a key in `.env` could bill
+  the subscription path or send it to another endpoint. OpenRouter names models
+  `anthropic/<id>`; the adapter adds the prefix, the port and the price table
+  keep canonical ids. OpenRouter's own fee (a few per cent on credits) is not in
+  the cost estimate.
+- Structured output on the Messages API is `output_config.format`: when
+  `stop_reason` is `end_turn` the body matches the schema, no retry turn exists.
+  A cut-off answer (`max_tokens`, `model_context_window_exceeded`) is
+  `limit_reached`, a `refusal` is `invalid_output`. `max_tokens` is 32k, the
+  CLI's default output cap, which thinking counts against; above ~21k the SDK
+  requires streaming, so the adapter streams internally and returns the final
+  message — the port still has no streaming. Haiku 4.5 rejects `effort` there;
+  the adapter omits it for that model.
 - Images: the Agent SDK's CLI shrinks every image block to ≤ 2000 px and
   recompresses JPEG to ≤ 500 KB before sending; the Messages API accepts up to
   8000 px / 10 MB and downscales at 2576 px (Haiku: 1568 px). Callers normalize
@@ -61,8 +83,8 @@ aliases (`sonnet`, `opus`) · image sources other than base64 (URL, file ids).
 ## Layout
 - `port.ts` — the contract (`LlmPort`, `LlmRequest`, `LlmResult`, `LlmError`).
 - `pricing.ts` — price table + cost from token counts.
-- `adapters/` — one file per backend; only `index.ts` knows which one is live.
-- `index.ts` — `createLlm()`, the single swap point.
+- `adapters/` — one file per backend; only `index.ts` knows which ones exist.
+- `index.ts` — `createLlm()`, the single wiring point: the configured set of backends.
 
 ## Changelog
 - 2026-09-20 — rules written; images (base64) added to the port after checking
@@ -72,3 +94,9 @@ aliases (`sonnet`, `opus`) · image sources other than base64 (URL, file ids).
 - 2026-09-26 — thinking on/off added: both backends take the same three-state
   `thinking` config (adaptive / enabled / disabled); the port exposes only the
   off switch, on = the backend's default.
+- 2026-09-26 — the "one live adapter" rule replaced by "several adapters, the
+  request picks one": `messages-api.adapter.ts` (Anthropic / OpenRouter by key),
+  `LlmBackend`, `createLlm()` returns the configured set.
+- 2026-09-26 — review of the backend switch: OpenRouter's key as a Bearer token,
+  credentials and URL pinned in the adapter, `stop_reason` checked, the CLI's
+  environment stripped of every credential and route variable.

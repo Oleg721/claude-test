@@ -2,6 +2,10 @@
 
 export type LlmEffort = 'low' | 'medium' | 'high' | 'max'
 
+/** Who answers: the Claude subscription through the Agent SDK, or the Messages API with a key — Anthropic's own or OpenRouter's. */
+export type LlmBackend = 'agent-sdk' | 'anthropic' | 'openrouter'
+export const LLM_BACKENDS: readonly LlmBackend[] = ['agent-sdk', 'anthropic', 'openrouter']
+
 export type LlmImageMediaType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif'
 
 export type LlmImage = {

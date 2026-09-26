@@ -59,11 +59,13 @@
                 { "key": "photo", "type": "file", "src": "", "description": "JPEG / PNG / WebP / GIF, up to 5 MB (required)" },
                 { "key": "model", "value": "haiku", "type": "text", "description": "fable | opus (default) | sonnet | haiku, or a full model id" },
                 { "key": "effort", "value": "low", "type": "text", "description": "low (default) | medium | high | max" },
+                { "key": "thinking", "value": "on", "type": "text", "description": "on (default: the backend's own default) | off" },
+                { "key": "backend", "value": "agent-sdk", "type": "text", "description": "agent-sdk (default: the subscription) | anthropic | openrouter — a keyed backend needs its key in .env and is billed to it" },
                 { "key": "grams", "value": "", "type": "text", "disabled": true },
                 { "key": "hint", "value": "", "type": "text", "disabled": true }
               ]
             },
-            "description": "Same call, different model / effort — compare `stats.usage` and `stats.cost` across models."
+            "description": "Same call, different model / effort / thinking / backend — compare `stats.usage` and `stats.cost` across them."
           }
         }
       ]

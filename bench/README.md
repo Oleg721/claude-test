@@ -17,7 +17,7 @@ open bench/runs/<date>-fruit/summary.md
 Options of `bench/run.mjs`:
 
 - `--photos <dir>` — JPEG / PNG / WebP / GIF, sorted by name, numbered `p01…` in that order (the mapping is written to `manifest.json`).
-- `--configs a,b,c` — `<model>-<effort>[-nothink]`, model = alias (`opus`, `sonnet`, `haiku`, `fable`) or full id, effort = `low | medium | high | max`, `-nothink` sends `thinking=off`. Default `opus-low`.
+- `--configs a,b,c` — `<model>-<effort>[-nothink][@<backend>]`, model = alias (`opus`, `sonnet`, `haiku`, `fable`) or full id, effort = `low | medium | high | max`, `-nothink` sends `thinking=off`, `@anthropic` / `@openrouter` sends `backend=` (default `agent-sdk`, the subscription). Default `opus-low`. One run may mix backends, e.g. `sonnet-low-nothink,sonnet-low-nothink@anthropic`, to compare them in one table.
 - `--out <dir>` — run folder, default `bench/runs/<date>-<photos folder name>`.
 - `--concurrency 3` — parallel calls. `--resume` — skip calls whose raw file already exists (rerun after failures).
 
