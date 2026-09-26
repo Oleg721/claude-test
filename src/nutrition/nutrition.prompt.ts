@@ -44,6 +44,7 @@ Task:
 5. If a label is partly unreadable or a value is uncertain, say so in "notes". Never invent digits: an unreadable label value is estimated from knowledge and the item is marked "knowledge". Front-of-pack claims whose basis you cannot read ("27 g protein**") are quoted in "notes" with the remark that the basis is not visible.
 6. No commentary — produce only the structured output.`
 
+// every object carries additionalProperties: false: the Messages API rejects a schema without it
 const MACROS_SCHEMA: JsonSchema = {
   type: 'object',
   properties: {
@@ -53,6 +54,7 @@ const MACROS_SCHEMA: JsonSchema = {
     carbs: { type: 'number', description: 'Total carbohydrates, g per 100 g' },
   },
   required: ['kcal', 'protein', 'fat', 'carbs'],
+  additionalProperties: false,
 }
 
 export const NUTRITION_SCHEMA: JsonSchema = {
@@ -89,6 +91,7 @@ export const NUTRITION_SCHEMA: JsonSchema = {
               },
             },
             required: ['estimate', 'confidence', 'basis'],
+            additionalProperties: false,
           },
           notes: {
             type: ['string', 'null'],
@@ -97,10 +100,12 @@ export const NUTRITION_SCHEMA: JsonSchema = {
           },
         },
         required: ['name', 'brand', 'source', 'per100g', 'portionGrams', 'notes'],
+        additionalProperties: false,
       },
     },
   },
   required: ['items'],
+  additionalProperties: false,
 }
 
 export type NutritionPromptInput = {

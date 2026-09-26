@@ -66,7 +66,11 @@ aliases (`sonnet`, `opus`) · image sources other than base64 (URL, file ids).
   CLI's default output cap, which thinking counts against; above ~21k the SDK
   requires streaming, so the adapter streams internally and returns the final
   message — the port still has no streaming. Haiku 4.5 rejects `effort` there;
-  the adapter omits it for that model.
+  the adapter omits it for that model. The API also validates the schema
+  itself, the Agent SDK does not: every object must carry
+  `additionalProperties: false`, and numeric, string and array constraints,
+  recursion and external `$ref` are rejected — so every schema behind the port
+  obeys that list (first hit 2026-09-26: two 400s on the portion schema).
 - Images: the Agent SDK's CLI shrinks every image block to ≤ 2000 px and
   recompresses JPEG to ≤ 500 KB before sending; the Messages API accepts up to
   8000 px / 10 MB and downscales at 2576 px (Haiku: 1568 px). Callers normalize

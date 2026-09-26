@@ -144,6 +144,7 @@ there is no food in the photo it is empty. "measured" is true only for the tappe
 which numbers and factors produced the estimate. "notes" is for anything odd about the mask, the
 depth or the photo, or null.`
 
+// every object carries additionalProperties: false: the Messages API rejects a schema without it
 const MACROS_SCHEMA: JsonSchema = {
   type: 'object',
   description: 'Per 100 g of the edible part',
@@ -154,6 +155,7 @@ const MACROS_SCHEMA: JsonSchema = {
     carbs: { type: 'number' },
   },
   required: ['kcal', 'protein', 'fat', 'carbs'],
+  additionalProperties: false,
 }
 
 export const PORTION_SCHEMA: JsonSchema = {
@@ -179,6 +181,7 @@ export const PORTION_SCHEMA: JsonSchema = {
               basis: { type: 'string', description: 'One line, in the form the instructions show' },
             },
             required: ['estimate', 'low', 'high', 'confidence', 'basis'],
+            additionalProperties: false,
           },
           edible: {
             type: ['object', 'null'],
@@ -189,6 +192,7 @@ export const PORTION_SCHEMA: JsonSchema = {
               removed: { type: 'string', description: 'What is left: peel, core, bone…' },
             },
             required: ['grams', 'share', 'removed'],
+            additionalProperties: false,
           },
           geometry: {
             type: ['object', 'null'],
@@ -199,14 +203,17 @@ export const PORTION_SCHEMA: JsonSchema = {
               densityGPerMl: { type: 'number' },
             },
             required: ['volumeMl', 'shapeFactor', 'densityGPerMl'],
+            additionalProperties: false,
           },
           notes: { type: ['string', 'null'], description: 'Anything odd about the mask, the depth or the photo' },
         },
         required: ['name', 'measured', 'per100g', 'portionGrams', 'edible', 'geometry', 'notes'],
+        additionalProperties: false,
       },
     },
   },
   required: ['items'],
+  additionalProperties: false,
 }
 
 export type PortionPromptInput = {
