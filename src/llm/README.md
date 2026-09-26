@@ -66,7 +66,12 @@ aliases (`sonnet`, `opus`) · image sources other than base64 (URL, file ids).
   CLI's default output cap, which thinking counts against; above ~21k the SDK
   requires streaming, so the adapter streams internally and returns the final
   message — the port still has no streaming. Haiku 4.5 rejects `effort` there;
-  the adapter omits it for that model. The API also validates the schema
+  the adapter omits it for that model.
+- Thinking on: the Agent SDK leaves it to the CLI, which thinks by default; the
+  Messages API leaves Haiku 4.5 without thinking unless asked, so the adapter
+  sends it explicitly — `adaptive` on every model, except Haiku 4.5 which knows
+  only `enabled` with a budget (16k here; `adaptive` is a 400 there, a budget
+  is a 400 on Sonnet 5 / Opus 5 / Fable). Off is `disabled` on both. The API also validates the schema
   itself, the Agent SDK does not: every object must carry
   `additionalProperties: false`, and numeric, string and array constraints,
   recursion and external `$ref` are rejected — so every schema behind the port
@@ -104,3 +109,6 @@ aliases (`sonnet`, `opus`) · image sources other than base64 (URL, file ids).
 - 2026-09-26 — review of the backend switch: OpenRouter's key as a Bearer token,
   credentials and URL pinned in the adapter, `stop_reason` checked, the CLI's
   environment stripped of every credential and route variable.
+- 2026-09-26 — thinking on made explicit on the Messages API (adaptive, or a
+  16k budget on Haiku 4.5); before, "on" meant the API's default, which for
+  Haiku is no thinking at all.

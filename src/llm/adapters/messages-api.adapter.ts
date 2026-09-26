@@ -16,10 +16,20 @@ export type MessagesApiOptions = {
 const ANTHROPIC_BASE_URL = 'https://api.anthropic.com'
 // the CLI's default output cap, thinking included; above ~21k tokens the SDK insists on streaming, so the call streams
 const MAX_TOKENS = 32000
+// budgeted thinking (Haiku 4.5) must stay under max_tokens
+const THINKING_BUDGET_TOKENS = 16000
 
-// Haiku 4.5 rejects `effort` on the Messages API
-function supportsEffort(model: string): boolean {
-  return !model.startsWith('claude-haiku-4-5')
+// Haiku 4.5 rejects `effort` and knows only budgeted thinking; every newer model is adaptive and rejects a budget
+function isHaiku45(model: string): boolean {
+  return model.startsWith('claude-haiku-4-5')
+}
+
+// on = thinking on the way the model supports it; the API leaves Haiku 4.5 without thinking unless asked
+function thinkingParam(request: LlmRequest): Anthropic.ThinkingConfigParam {
+  if (request.thinking === false) {
+    return { type: 'disabled' }
+  }
+  return isHaiku45(request.model) ? { type: 'enabled', budget_tokens: THINKING_BUDGET_TOKENS } : { type: 'adaptive' }
 }
 
 /** The Messages API with a key. Everything vendor-specific stays inside this file — see ../README.md. */
@@ -55,7 +65,7 @@ export class MessagesApiAdapter implements LlmPort {
 
 function buildParams(request: LlmRequest, modelPrefix: string): Anthropic.MessageStreamParams {
   const outputConfig: Anthropic.OutputConfig = {
-    ...(request.effort && supportsEffort(request.model) ? { effort: request.effort } : {}),
+    ...(request.effort && !isHaiku45(request.model) ? { effort: request.effort } : {}),
     ...(request.schema ? { format: { type: 'json_schema' as const, schema: request.schema } } : {}),
   }
   return {
@@ -74,8 +84,8 @@ function buildParams(request: LlmRequest, modelPrefix: string): Anthropic.Messag
         ],
       },
     ],
-    // true = the API's own default for the model; no cache_control either way, a photo is never sent twice
-    ...(request.thinking === false ? { thinking: { type: 'disabled' as const } } : {}),
+    // no cache_control: a photo is never sent twice
+    thinking: thinkingParam(request),
     ...(Object.keys(outputConfig).length > 0 ? { output_config: outputConfig } : {}),
   }
 }

@@ -89,8 +89,8 @@ labels.
 - `POST /nutrition/photo` — `multipart/form-data`: `photo` (JPEG/PNG/WebP/GIF, ≤ 5 MB,
   required), `grams` (positive number, optional — skips the weight estimate), `hint`
   (text, optional), `model` (alias or full id, default opus), `effort` (`low` | `medium` |
-  `high` | `max`, default low), `thinking` (`on` | `off`, default on = the backend's default;
-  off disables extended thinking), `backend` (`agent-sdk` | `anthropic` | `openrouter`, default
+  `high` | `max`, default low), `thinking` (`on` | `off`, default on: adaptive thinking, or a
+  16k-token budget on Haiku 4.5, which has no adaptive mode; off disables it), `backend` (`agent-sdk` | `anthropic` | `openrouter`, default
   agent-sdk; a keyed backend without its key in the environment or `.env` is a 400). The photo is normalized before the model sees it: EXIF
   rotation applied, long edge capped at 1568 px (never enlarged), re-encoded as JPEG q85,
   metadata dropped — 1568 px stays under every model tier's downscale limit and costs

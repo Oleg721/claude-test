@@ -56,6 +56,7 @@ Reading the tables: cost is the server's `stats.cost` (price table in `src/llm/p
 - `reports/2026-09-26-measure-v3-nothink.md` — the same with `thinking=off`: identical grams; haiku from $0.02–0.05 and 24–90 s down to $0.01 and 11 s, opus and sonnet unchanged.
 - `reports/2026-09-26-measure-v3-haiku-anthropic.md` — the same two stills through the Messages API (`haiku-low-nothink@anthropic`), the first run on a key: banana 157 g, apple 383 g (Haiku averaged the computed 315 g with a second formula it made up); $0.0066 and 7–9 s a call.
 - `reports/2026-09-26-measure-v3-sonnet-anthropic.md` — the same with `sonnet-low-nothink@anthropic`: 315 and 157 g to the gram, confidence medium on both, no structured-output retry (the Agent SDK double-wrap does not exist on the API); $0.0155 and 7–8 s a call.
+- `reports/2026-09-26-measure-v3-haiku-think-anthropic.md` — the apple alone with `haiku-low@anthropic`, thinking on (a 16k budget, the API's only mode for Haiku 4.5): 315 g, high, the textbook basis; 3.9k output tokens, 54 s, $0.025 — against 383 g in 9 s for $0.007 without thinking.
 
 - `reports/2026-09-20-preview-1024px.md` — 13 photos (9 fruits, 4 labels) × haiku/sonnet/opus, low and medium; 1024 px previews, before normalization existed.
 - `reports/2026-09-20-originals-2000px.md` — the 4 hardest fruit photos as originals (the backend capped them at 2000 px) × sonnet/opus × low/medium/high.
