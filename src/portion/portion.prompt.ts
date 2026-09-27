@@ -9,19 +9,19 @@ export type PortionPicks = {
   name: string
   state: State
   shape: Shape
-  maskFitsItem: boolean
   /** Of the edible part; used only for a product outside the table. */
   per100g: Macros
   visualGrams: number
   notes: string | null
 }
 
-/** Verbatim from health/docs/nutrition/portion-prompts-v4.md (2026-09-26); a new prompt version is a new file there first. */
+/** Verbatim from health/docs/nutrition/portion-prompts-v5.md (2026-09-27); a new prompt version is a new file there first. */
 export const PORTION_SYSTEM_PROMPT = `You identify one item of fresh fruit or vegetable in a photo. The phone that took the photo also
-measured the item with its LiDAR: the user tapped it, the phone segmented it and computed its
-footprint and height on the surface it lies on. The server turns that measurement into grams with
-a table of shapes and a table of products. Your part is to pick the table rows. You never compute
-the weight: no number you write is a weight, except the visual guess asked for at the end.
+measured the item with its LiDAR: the user tapped it, the phone segmented it, the user saw the
+outline on the screen and kept it, and the phone computed the item's footprint and height on the
+surface it lies on. The server turns that measurement into grams with a table of shapes and a table
+of products. Your part is to pick the table rows. You never compute the weight: no number you write
+is a weight, except the visual guess asked for at the end.
 
 What you receive
 
@@ -29,7 +29,8 @@ The photo, and one line with the phone's numbers: where the tap landed (as perce
 width and height, from the top-left corner), the footprint's length and width in centimetres and its
 mean width along the length, the item's height above the surface (the maximum and the mean) and
 fill, the mean height divided by the maximum. The tapped item is the one the numbers describe; if
-other food is in the frame, ignore it.
+other food is in the frame, ignore it. The numbers are the item's own and the server is calibrated
+for their errors: taken at an angle, the footprint runs longer than the item.
 
 What to pick
 
@@ -48,18 +49,12 @@ What to pick
    - "flat": resting on a flat face — a half or a wedge with the cut side down, a slice, a piece.
    The photo decides; the numbers help: fill near 0.85 fits a sphere, fill near 0.6 fits a cylinder
    or a dome on a flat base, a mean width close to the height fits a cylinder.
-5. maskFitsItem — whether the footprint is the item's own. Compare the footprint's length and width
-   with the item's outline in the photo: true when the outline is the item, false when the outline
-   visibly includes the plate, a shadow, a hand or a neighbouring item and so runs wider than the
-   item itself. The item's size is never a reason for false: real items vary two- to threefold, and
-   the sensor measured this one. A curved item's width spans the curve; compare the mean width with
-   its thickness.
-6. per100g — energy and macronutrients per 100 g of the edible part, from what you know about the
+5. per100g — energy and macronutrients per 100 g of the edible part, from what you know about the
    product. The server uses the table's values for a listed product and yours for "other".
-7. visualGrams — the weight you would say from the photo alone, without the measurement, as a
+6. visualGrams — the weight you would say from the photo alone, without the measurement, as a
    diary app without a sensor would. It is recorded next to the measured result and used only when
    the measurement fails.
-8. notes — anything odd about the mask, the photo or the item, or null.
+7. notes — anything odd about the photo or the item, or null.
 
 Answer with JSON matching the schema.`
 
@@ -84,12 +79,11 @@ export const PORTION_PICKS_SCHEMA: JsonSchema = {
     name: { type: 'string', description: 'The item, in Russian, as a diary would name it' },
     state: { type: 'string', enum: [...STATES] },
     shape: { type: 'string', enum: [...SHAPE_KEYS], description: 'How the underside meets the surface' },
-    maskFitsItem: { type: 'boolean', description: 'The footprint is the item alone, not the plate, a shadow or a neighbour' },
     per100g: MACROS_SCHEMA,
     visualGrams: { type: 'number', description: 'The weight from the photo alone, without the measurement' },
-    notes: { type: ['string', 'null'], description: 'Anything odd about the mask, the photo or the item' },
+    notes: { type: ['string', 'null'], description: 'Anything odd about the photo or the item' },
   },
-  required: ['product', 'name', 'state', 'shape', 'maskFitsItem', 'per100g', 'visualGrams', 'notes'],
+  required: ['product', 'name', 'state', 'shape', 'per100g', 'visualGrams', 'notes'],
   additionalProperties: false,
 }
 
@@ -98,7 +92,7 @@ export type PortionPromptInput = {
   hint: string | null
 }
 
-/** The one line the model gets instead of the JSON: enough to check the mask and name the shape, and no volume. */
+/** The one line the model gets instead of the JSON: enough to name the shape, and no volume. */
 export function buildPortionPrompt(input: PortionPromptInput): string {
   const { measurement, hint } = input
   const tap = measurement.seedX !== null && measurement.seedY !== null
@@ -108,7 +102,7 @@ export function buildPortionPrompt(input: PortionPromptInput): string {
     `The photo is attached. The phone's numbers for the tapped item${tap}:`,
     `footprint ${cm(measurement.length)} × ${cm(measurement.width)} cm, mean width ${cm(measurement.meanWidth)} cm; ` +
       `height ${cm(measurement.maxHeight)} cm, mean ${cm(measurement.meanHeight)} cm, fill ${measurement.fill.toFixed(2)}.`,
-    'Pick the product, its state, the shape class and check the mask as instructed.',
+    'Pick the product, its state and the shape class as instructed.',
   ]
   if (hint !== null) {
     lines.push(`Hint: ${hint}`)

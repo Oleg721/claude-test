@@ -6,7 +6,7 @@ export type Shape = 'sphere' | 'cylinder' | 'flat'
 export type ShapeSpec = {
   /** True volume over measured volume: the calibrated value when there is one, else theory. */
   factor: number
-  /** The ideal solid's ratio, see health/docs/nutrition/portion-prompts-v4.md "Shape table". */
+  /** The ideal solid's ratio, see health/docs/nutrition/portion-prompts-v5.md "Shape table". */
   theory: number
   calibrated: string | null
 }

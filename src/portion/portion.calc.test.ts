@@ -5,7 +5,7 @@ import { weighPortion } from './portion.calc.js'
 import { parseMeasurement, type PortionMeasurement } from './portion.measurement.js'
 import { buildPortionPrompt, type PortionPicks } from './portion.prompt.js'
 
-// the two calibration stills, see health/docs/nutrition/portion-prompts-v4.md "What a good answer looks like"
+// the two calibration stills, see health/docs/nutrition/portion-prompts-v5.md "What a good answer looks like"
 const APPLE = measure({
   subject: { coverage: 0.085, seedX: 0.5099, seedY: 0.504 },
   portion: {
@@ -40,7 +40,6 @@ const applePicks: PortionPicks = {
   name: 'яблоко',
   state: 'whole',
   shape: 'sphere',
-  maskFitsItem: true,
   per100g: { kcal: 50, protein: 0.3, fat: 0.2, carbs: 12 },
   visualGrams: 180,
   notes: null,
@@ -77,18 +76,18 @@ test('a peeled banana keeps the whole weight and is eaten whole', () => {
   assert.equal(item.edible, null)
 })
 
-test('a mask that does not fit falls back to the visual estimate at low confidence', () => {
-  const item = weighPortion(APPLE, { ...applePicks, maskFitsItem: false })
+test('a height under 1 cm falls back to the visual estimate at low confidence', () => {
+  const item = weighPortion({ ...APPLE, maxHeight: 0.8 }, applePicks)
 
   assert.deepEqual(item.portionGrams, {
     estimate: 180,
     low: 117,
     high: 243,
     confidence: 'low',
-    basis: 'the mask does not fit the item (model); visual estimate 180 g',
+    basis: 'height 0.8 cm is under 1 cm: the volume is within sensor noise; visual estimate 180 g',
   })
   assert.equal(item.geometry, null)
-  assert.equal(item.gates.mask, false)
+  assert.equal(item.gates.height, false)
 })
 
 test('a product outside the table gets no grams and keeps the model\'s per-100 g values', () => {

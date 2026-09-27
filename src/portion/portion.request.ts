@@ -8,7 +8,8 @@ export async function parsePortionRequest(
   body: Record<string, unknown>,
   available: readonly LlmBackend[],
 ): Promise<AnalyzePortionInput | RequestError> {
-  const base = await parsePhotoRequest(body, available)
+  // v5's working model, see health/docs/nutrition/portion-prompts-v5.md "Working model"
+  const base = await parsePhotoRequest({ model: 'sonnet', thinking: 'off', ...body }, available)
   if ('error' in base) {
     return base
   }

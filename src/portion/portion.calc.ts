@@ -12,8 +12,6 @@ export type Gates = {
   angle: boolean
   /** maxHeight ≥ 1 cm; below it the volume is within sensor noise. */
   height: boolean
-  /** The model's check that the footprint is the item alone. */
-  mask: boolean
   /** The product is in the table. */
   product: boolean
 }
@@ -49,7 +47,6 @@ export type PortionItem = {
     product: ProductKey | 'other'
     state: State
     shape: Shape
-    maskFitsItem: boolean
     visualGrams: number
   }
   gates: Gates
@@ -62,7 +59,7 @@ const MAX_VIEW_ANGLE_DEG = 45
 const MIN_HEIGHT_CM = 1
 const SPREAD: Record<Confidence, number> = { high: 0.1, medium: 0.2, low: 0.35 }
 
-/** Picks + measurement → the weighed item; pure, see health/docs/nutrition/portion-prompts-v4.md "What the server computes". */
+/** Picks + measurement → the weighed item; pure, see health/docs/nutrition/portion-prompts-v5.md "What the server computes". */
 export function weighPortion(measurement: PortionMeasurement, picks: PortionPicks): PortionItem {
   const product = picks.product === 'other' ? null : PRODUCTS[picks.product]
   const gates: Gates = {
@@ -70,7 +67,6 @@ export function weighPortion(measurement: PortionMeasurement, picks: PortionPick
     plane: measurement.planeResidual <= MAX_PLANE_RESIDUAL_MM,
     angle: measurement.viewAngle === null || measurement.viewAngle <= MAX_VIEW_ANGLE_DEG,
     height: measurement.maxHeight >= MIN_HEIGHT_CM,
-    mask: picks.maskFitsItem,
     product: product !== null,
   }
   const common = {
@@ -78,7 +74,7 @@ export function weighPortion(measurement: PortionMeasurement, picks: PortionPick
     measured: true as const,
     source: product === null ? ('knowledge' as const) : ('table' as const),
     per100g: product?.per100g ?? picks.per100g,
-    picks: { product: picks.product, state: picks.state, shape: picks.shape, maskFitsItem: picks.maskFitsItem, visualGrams: picks.visualGrams },
+    picks: { product: picks.product, state: picks.state, shape: picks.shape, visualGrams: picks.visualGrams },
     gates,
     notes: picks.notes,
   }
@@ -88,11 +84,9 @@ export function weighPortion(measurement: PortionMeasurement, picks: PortionPick
     return { ...common, portionGrams: { estimate: null, low: null, high: null, confidence: 'low', basis }, edible: null, geometry: null }
   }
 
-  if (!gates.height || !gates.mask) {
+  if (!gates.height) {
     const estimate = Math.round(picks.visualGrams)
-    const reason = gates.height
-      ? 'the mask does not fit the item (model)'
-      : `height ${round1(measurement.maxHeight)} cm is under ${MIN_HEIGHT_CM} cm: the volume is within sensor noise`
+    const reason = `height ${round1(measurement.maxHeight)} cm is under ${MIN_HEIGHT_CM} cm: the volume is within sensor noise`
     const portionGrams = { ...range(estimate, 'low'), basis: `${reason}; visual estimate ${estimate} g` }
     return { ...common, portionGrams, edible: edibleOf(product, picks.state, estimate), geometry: null }
   }
