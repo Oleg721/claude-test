@@ -13,7 +13,7 @@ npm run bench -- --photos <dir> --configs opus-low,sonnet-low   # photo benchmar
 npm run bench:summary -- bench/runs/<run>                        # fold a run into summary.md / .csv
 ```
 
-No test suite. `main.ts` loads `.env` (git-ignored) for the keyed backends: `ANTHROPIC_API_KEY`
+Tests: `npm test` (node:test through tsx) — only `src/portion/portion.calc.test.ts`, which pins the server arithmetic to the calibration stills. `main.ts` loads `.env` (git-ignored) for the keyed backends: `ANTHROPIC_API_KEY`
 enables `backend=anthropic`, `OPENROUTER_API_KEY` enables `backend=openrouter`. The default
 backend stays the Agent SDK on the personal Claude subscription; its adapter hides the key and
 route variables (`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`,
@@ -38,10 +38,13 @@ src/
     nutrition.service.ts   the use case: normalize photo → port call → portions → cost → result
     nutrition.calc.ts      portion macros + bread units (pure)
     nutrition.route.ts     parse → service → json, nothing else
-  portion/                 POST /portion/photo — grams from a photo plus Plate's Measure JSON (LiDAR geometry)
-    portion.prompt.ts      system prompt (verbatim from health/docs/nutrition/portion-prompts-v3.md) + schema + types
-    portion.request.ts     /nutrition/photo's fields plus `measurement`; strips the calibration `note`
-    portion.service.ts     normalize photo → port call → edible portion → cost → result
+  portion/                 POST /portion/photo — grams from a photo plus Plate's Measure JSON (LiDAR geometry); the fruit branch
+    portion.prompt.ts      system prompt (verbatim from health/docs/nutrition/portion-prompts-v4.md) + the picks schema + the one-line user prompt
+    portion.measurement.ts the numbers the branch reads out of the Measure JSON (+ derived fill, meanWidth)
+    portion.tables.ts      shape factors and the product table (density, per-100 g values, inedible parts)
+    portion.calc.ts        picks + measurement → gates, grams, range, basis (pure; portion.calc.test.ts pins the calibration stills)
+    portion.request.ts     /nutrition/photo's fields plus `measurement`, parsed down to the numbers
+    portion.service.ts     normalize photo → port call (picks) → weigh → edible portion → cost → result
     portion.route.ts       parse → service → json
 bench/                     photo benchmark: run.mjs + summarize.mjs + reports/ (photos/ and runs/ are git-ignored)
 ```
@@ -107,13 +110,17 @@ labels.
 
 - `POST /portion/photo` — the same fields as `/nutrition/photo` plus `measurement` (text,
   required): the JSON Plate's Measure screen saves next to the still (footprint, heights,
-  volume, plane fit, view angle…). The model turns that geometry into grams by the algorithm
-  in `health/docs/nutrition/portion-prompts-v3.md`; the prompt in `src/portion/portion.prompt.ts`
-  is a verbatim copy, and a new prompt version is a new file there first. `measurement.note`
-  (the kitchen scale during calibration) is removed before the call. Returns `items[]` with
-  `portionGrams` (the item as it lies in the photo, with low/high), `edible` (grams, share,
-  what is removed — null when the whole item is eaten), `geometry` (volume × shape factor ×
-  density the model used), the `portion` macros of what is eaten, and the same `stats`.
+  volume, plane fit, view angle…). The fruit branch, prompt v4: the model picks table rows — a
+  product, its state, a shape class — and checks that the mask fits the item; the server does
+  the arithmetic (`portion.calc.ts`: gates, volume × shape factor × density, edible part, range,
+  `basis`) from `portion.tables.ts`. The model never sees the volume or the raw JSON: the request
+  parser reads the geometry numbers out of `measurement.portion` (a 400 when they are missing)
+  and the prompt gets one line with the footprint, the heights and fill. The prompt is a verbatim
+  copy of `health/docs/nutrition/portion-prompts-v4.md`; a new prompt version is a new file there
+  first. Returns one item in `items[]`: `portionGrams` (the item as it lies, with low/high; null
+  for a product outside the table), `edible`, `geometry`, `picks` (the model's rows and its
+  photo-only `visualGrams`), `gates`, `source` (`table` | `knowledge`, where `per100g` came from),
+  the `portion` macros of what is eaten, and the same `stats`.
 
   ```bash
   curl -s -F photo=@still.jpg -F "measurement=$(cat still.json)" http://localhost:3000/portion/photo | jq

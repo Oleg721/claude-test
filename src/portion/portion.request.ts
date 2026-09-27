@@ -1,5 +1,6 @@
 import type { LlmBackend } from '../llm/index.js'
 import { parsePhotoRequest, type RequestError } from '../nutrition/nutrition.request.js'
+import { parseMeasurement } from './portion.measurement.js'
 import type { AnalyzePortionInput } from './portion.service.js'
 
 /** multipart/form-data → service input: what /nutrition/photo takes, plus `measurement` (the Measure JSON as text, required). */
@@ -26,9 +27,11 @@ export async function parsePortionRequest(
     return { error: 'measurement must be a JSON object' }
   }
 
-  // `note` holds the kitchen scale's reading during calibration; the model must not see it
-  const measurement = { ...(parsed as Record<string, unknown>) }
-  delete measurement['note']
+  // only the geometry numbers go on; the calibration `note` and the rest of the record stop here
+  const measurement = parseMeasurement(parsed as Record<string, unknown>)
+  if ('error' in measurement) {
+    return measurement
+  }
 
   return {
     photo: base.photo,

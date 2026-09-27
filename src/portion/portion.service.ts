@@ -2,13 +2,9 @@ import { normalizeImage } from '../images/normalize.js'
 import { estimateCost, type LlmBackend, type LlmEffort, type LlmPort } from '../llm/index.js'
 import { computePortion, type Portion } from '../nutrition/nutrition.calc.js'
 import type { AnalyzePhotoResult } from '../nutrition/nutrition.service.js'
-import {
-  buildPortionPrompt,
-  PORTION_SCHEMA,
-  PORTION_SYSTEM_PROMPT,
-  type PortionAnalysis,
-  type PortionItem,
-} from './portion.prompt.js'
+import { weighPortion, type PortionItem } from './portion.calc.js'
+import type { PortionMeasurement } from './portion.measurement.js'
+import { buildPortionPrompt, PORTION_PICKS_SCHEMA, PORTION_SYSTEM_PROMPT, type PortionPicks } from './portion.prompt.js'
 
 export type AnalyzePortionInput = {
   photo: Buffer
@@ -17,13 +13,12 @@ export type AnalyzePortionInput = {
   effort: LlmEffort
   thinking: boolean
   hint: string | null
-  /** The Measure JSON as saved by Plate, `note` removed by the request parser. */
-  measurement: Record<string, unknown>
+  measurement: PortionMeasurement
 }
 
 export type PortionResultItem = PortionItem & {
-  /** What is eaten: per 100 g × the edible grams, or × the whole item when nothing is removed. */
-  portion: Portion
+  /** What is eaten: per 100 g × the edible grams, or × the whole item when nothing is removed; null without grams. */
+  portion: Portion | null
 }
 
 export type AnalyzePortionResult = {
@@ -35,22 +30,21 @@ export async function analyzePortion(llm: LlmPort, input: AnalyzePortionInput): 
   const startedAt = Date.now()
 
   const image = await normalizeImage(input.photo)
-  const result = await llm.complete<PortionAnalysis>({
+  const result = await llm.complete<PortionPicks>({
     system: PORTION_SYSTEM_PROMPT,
     prompt: buildPortionPrompt({ measurement: input.measurement, hint: input.hint }),
     model: input.model,
     effort: input.effort,
     thinking: input.thinking,
-    schema: PORTION_SCHEMA,
+    schema: PORTION_PICKS_SCHEMA,
     // a photo is never sent twice, and a cache write costs 2x plain input on the Agent SDK backend
     cache: false,
     images: [{ mediaType: image.mediaType, base64: image.bytes.toString('base64') }],
   })
 
-  const items = result.data.items.map((item) => ({
-    ...item,
-    portion: computePortion(item.per100g, item.edible?.grams ?? item.portionGrams.estimate),
-  }))
+  const item = weighPortion(input.measurement, result.data)
+  const grams = item.edible?.grams ?? item.portionGrams.estimate
+  const items = [{ ...item, portion: grams === null ? null : computePortion(item.per100g, grams) }]
   const stats = {
     backend: input.backend,
     model: input.model,
