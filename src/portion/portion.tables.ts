@@ -12,8 +12,8 @@ export type ShapeSpec = {
 }
 
 export const SHAPES: Record<Shape, ShapeSpec> = {
-  // a real apple sits on a flatter base than an ideal ball, so less air hides under it than theory says
-  sphere: { factor: 0.87, theory: 0.8, calibrated: 'apple 314 g, 2026-09-23' },
+  // what the scale implied over ten round stills (four apples, two mandarins, 6–48°); a flatter base and the far side lost past 40° both sit in it
+  sphere: { factor: 0.94, theory: 0.8, calibrated: 'ten round stills, 2026-09-27' },
   cylinder: { factor: 0.87, theory: 0.88, calibrated: 'banana 157 g, 2026-09-24' },
   flat: { factor: 1, theory: 1, calibrated: null },
 }

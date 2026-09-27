@@ -46,18 +46,18 @@ const applePicks: PortionPicks = {
   notes: null,
 }
 
-test('the apple: 453 ml × 0.87 (sphere) × 0.80 = 315 g, core off → 284 g, high', () => {
+test('the apple: 453 ml × 0.94 (sphere) × 0.80 = 341 g, core off → 307 g, high', () => {
   const item = weighPortion(APPLE, applePicks)
 
   assert.deepEqual(item.portionGrams, {
-    estimate: 315,
-    low: 284,
-    high: 347,
+    estimate: 341,
+    low: 307,
+    high: 375,
     confidence: 'high',
-    basis: 'volume 453 ml × 0.87 (sphere) × 0.8 (apple) = 315 g; gates pass; edible 0.9 (core) → 284 g',
+    basis: 'volume 453 ml × 0.94 (sphere) × 0.8 (apple) = 341 g; gates pass; edible 0.9 (core) → 307 g',
   })
-  assert.deepEqual(item.edible, { grams: 284, share: 0.9, removed: 'core' })
-  assert.deepEqual(item.geometry, { volumeMl: 452.9, shapeFactor: 0.87, densityGPerMl: 0.8 })
+  assert.deepEqual(item.edible, { grams: 307, share: 0.9, removed: 'core' })
+  assert.deepEqual(item.geometry, { volumeMl: 452.9, shapeFactor: 0.94, densityGPerMl: 0.8 })
   assert.equal(item.source, 'table')
   assert.equal(item.per100g.carbs, 13.8)
 })
