@@ -6,6 +6,9 @@ import { weighPortion, type PortionItem } from './portion.calc.js'
 import type { PortionMeasurement } from './portion.measurement.js'
 import { buildPortionPrompt, PORTION_PICKS_SCHEMA, PORTION_SYSTEM_PROMPT, type PortionPicks } from './portion.prompt.js'
 
+// Half the label size: fruit is named the same down to 256 px, see bench/reports/2026-09-27-resolution.md
+const PORTION_MAX_EDGE_PX = 784
+
 export type AnalyzePortionInput = {
   photo: Buffer
   backend: LlmBackend
@@ -29,7 +32,7 @@ export type AnalyzePortionResult = {
 export async function analyzePortion(llm: LlmPort, input: AnalyzePortionInput): Promise<AnalyzePortionResult> {
   const startedAt = Date.now()
 
-  const image = await normalizeImage(input.photo)
+  const image = await normalizeImage(input.photo, PORTION_MAX_EDGE_PX)
   const result = await llm.complete<PortionPicks>({
     system: PORTION_SYSTEM_PROMPT,
     prompt: buildPortionPrompt({ measurement: input.measurement, hint: input.hint }),

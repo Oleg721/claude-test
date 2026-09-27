@@ -79,7 +79,7 @@ aliases (`sonnet`, `opus`) · image sources other than base64 (URL, file ids).
 - Images: the Agent SDK's CLI shrinks every image block to ≤ 2000 px and
   recompresses JPEG to ≤ 500 KB before sending; the Messages API accepts up to
   8000 px / 10 MB and downscales at 2576 px (Haiku: 1568 px). Callers normalize
-  images themselves (`src/images/normalize.ts`, 1568 px) so both backends see
+  images themselves (`src/images/normalize.ts`, 1568 px; portions 784) so both backends see
   the same pixels.
 - Structured output: the Agent SDK validates the schema on its side and retries
   a mismatch with an extra turn that carries a ~29k-token prefix (cached: cheap;

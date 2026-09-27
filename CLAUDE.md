@@ -26,7 +26,7 @@ src/
   main.ts                  serve on :3000
   app.ts                   Hono app, logger, mounts feature routes, global error handler (LlmError → 502)
   models.ts                default model + alias → full id (HTTP side only)
-  images/normalize.ts      sharp: EXIF rotation, ≤ 1568 px long edge, JPEG q85 — every photo passes through it
+  images/normalize.ts      sharp: EXIF rotation, ≤ 1568 px long edge (portions: 784), JPEG q85 — every photo passes through it
   llm/                     the LLM port — rules in llm/README.md, read them first
     port.ts                LlmPort, LlmRequest, LlmResult, LlmUsage, LlmError
     pricing.ts             price table + cost from token counts
@@ -112,7 +112,8 @@ labels.
   required): the JSON Plate's Measure screen saves next to the still (footprint, heights,
   volume, plane fit, view angle…). The fruit branch, prompt v5: the model picks table rows — a
   product, its state, a shape class (the user has already checked the mask on the phone); the
-  default model here is Sonnet at effort low, thinking off; the server does
+  default model here is Sonnet at effort low, thinking off; the photo is capped at 784 px, half the
+  label size (fruit is named the same down to 256 px); the server does
   the arithmetic (`portion.calc.ts`: gates, volume × shape factor × density, edible part, range,
   `basis`) from `portion.tables.ts`. The model never sees the volume or the raw JSON: the request
   parser reads the geometry numbers out of `measurement.portion` (a 400 when they are missing)

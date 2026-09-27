@@ -11,11 +11,11 @@ export type NormalizedImage = {
   height: number
 }
 
-/** EXIF rotation baked in, long edge capped at MAX_EDGE_PX (never enlarged), re-encoded as JPEG, metadata dropped. */
-export async function normalizeImage(bytes: Buffer): Promise<NormalizedImage> {
+/** EXIF rotation baked in, long edge capped at maxEdgePx (never enlarged), re-encoded as JPEG, metadata dropped. */
+export async function normalizeImage(bytes: Buffer, maxEdgePx = MAX_EDGE_PX): Promise<NormalizedImage> {
   const { data, info } = await sharp(bytes)
     .rotate()
-    .resize({ width: MAX_EDGE_PX, height: MAX_EDGE_PX, fit: 'inside', withoutEnlargement: true })
+    .resize({ width: maxEdgePx, height: maxEdgePx, fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: JPEG_QUALITY })
     .toBuffer({ resolveWithObject: true })
 
